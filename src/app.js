@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
+import { stripHtml } from "string-strip-html";
 
 dotenv.config();
 
@@ -26,8 +27,10 @@ app.post('/sign-up', async (req, res) => {
     });
 
     try {
-        const user = req.body;
-        const passwordHash = bcrypt.hashSync(user.password, 10);
+        const name = stripHtml(req.body.name).result.trim();
+        const email = stripHtml(req.body.email).result.trim();
+        const passwordHash = bcrypt.hashSync(req.body.password, 10);
+        const user = { name, email, password: passwordHash };
 
         const validation = signUpSchema.validate(user, { abortEarly: false });
         if (validation.error) {
@@ -35,7 +38,7 @@ app.post('/sign-up', async (req, res) => {
         }
 
         const userExists = await db.collection('users').findOne({ email: user.email });
-        if (!userExists) {
+        if (userExists) {
             return res.sendStatus(409);
         }
 
