@@ -50,6 +50,9 @@ app.post('/sign-up', async (req, res) => {
 
         await db.collection('users').insertOne({ ...user, password: passwordHash });
 
+        const userCreated = await db.collection('users').findOne({ name: user.name });
+        await db.collection('userWallet').insertOne({ userId: userCreated._id, expenses: [] });
+
         res.sendStatus(201);
     } catch (error) {
         res.status(500).send(error);
@@ -101,14 +104,48 @@ function capitalizeFirstLetterOfFirstName(string) {
     return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 
-app.get('/wallet', async (req, res) => {
+app.post('/add-expense', async (req, res) => {
+    const incomeSchema = joi.object({
+        value: joi.string().required(),
+        description: joi.string().required(),
+        expense: joi.bool().required()
+    });
+
     try {
-        const statement = await db.collection('statement').find({}).toArray();
-        res.status(200).send(statement);
+        const token = req.header('Authorization').split(' ')[1];
+
+        const session = await db.collection('sessions').findOne({ token });
+        if (!session) {
+            res.sendStatus(401);
+        }
+
+        const validation = incomeSchema.validate(req.body, { abortEarly: false });
+        if (validation.error) {
+            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
+        }
+
+        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+        await db.collection('userWallet').updateOne({ _id: userWallet._id },
+            {
+                $push: { expenses: req.body }
+            });
+
+        res.sendStatus(201);
     } catch (error) {
         res.status(500).send(error);
     }
 });
+
+// app.get('/wallet', async (req, res) => {
+//     try {
+//         const token = req.header('Authorization').split(' ')[1];
+
+//         const statement = await db.collection('statement').find({}).toArray();
+//         res.status(200).send(statement);
+//     } catch (error) {
+//         res.status(500).send(error);
+//     }
+// });
 
 
 app.listen(5000);
