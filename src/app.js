@@ -23,19 +23,25 @@ app.post('/sign-up', async (req, res) => {
     const signUpSchema = joi.object({
         name: joi.string().required(),
         email: joi.string().lowercase().strict().required(),
-        password: joi.string().required()
+        password: joi.string().required(),
+        passwordConfirmation: joi.string().required()
     });
 
     try {
+        const validation = signUpSchema.validate(req.body, { abortEarly: false });
+        if (validation.error) {
+            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
+        }
+
+        const passwordsMatch = (req.body.password === req.body.passwordConfirmation);
+        if (!passwordsMatch) {
+            return res.sendStatus(409);
+        }
+
         const name = stripHtml(req.body.name).result.trim();
         const email = stripHtml(req.body.email).result.trim();
         const passwordHash = bcrypt.hashSync(req.body.password, 10);
         const user = { name, email, password: passwordHash };
-
-        const validation = signUpSchema.validate(user, { abortEarly: false });
-        if (validation.error) {
-            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
-        }
 
         const userExists = await db.collection('users').findOne({ email: user.email });
         if (userExists) {
@@ -81,6 +87,24 @@ app.post('/sign-in', async (req, res) => {
         } else {
             return res.sendStatus(409);
         }
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+}
+
+app.get('/user', async (req, res) => {
+    try {
+        const token = req.header('Authorization').split(' ')[1];
+
+        const session = await db.collection('sessions').findOne({ token: token });
+        const user = await db.collection('users').findOne({ _id: session.userId });
+        const firstName = capitalizeFirstLetter(user.name.split(' ')[0]);
+
+        res.status(200).send(firstName);
     } catch (error) {
         res.status(500).send(error);
     }
