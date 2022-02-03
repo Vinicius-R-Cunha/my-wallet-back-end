@@ -91,6 +91,7 @@ app.post('/sign-in', async (req, res) => {
                 email: userExists.email,
                 token
             });
+            return;
         } else {
             return res.sendStatus(409);
         }
@@ -116,7 +117,7 @@ app.post('/add-expense', async (req, res) => {
 
         const session = await db.collection('sessions').findOne({ token });
         if (!session) {
-            res.sendStatus(401);
+            return res.sendStatus(401);
         }
 
         const validation = incomeSchema.validate(req.body, { abortEarly: false });
@@ -136,16 +137,24 @@ app.post('/add-expense', async (req, res) => {
     }
 });
 
-// app.get('/wallet', async (req, res) => {
-//     try {
-//         const token = req.header('Authorization').split(' ')[1];
+app.get('/wallet', async (req, res) => {
+    try {
+        const token = req.header('Authorization').split(' ')[1];
 
-//         const statement = await db.collection('statement').find({}).toArray();
-//         res.status(200).send(statement);
-//     } catch (error) {
-//         res.status(500).send(error);
-//     }
-// });
+        const session = await db.collection('sessions').findOne({ token });
+        if (!session) {
+            return res.sendStatus(401);
+        }
+
+        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+
+        console.log(userWallet.expenses);
+
+        res.status(200).send(userWallet.expenses);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
 
 
 app.listen(5000);
