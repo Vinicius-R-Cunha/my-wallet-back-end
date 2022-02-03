@@ -83,7 +83,11 @@ app.post('/sign-in', async (req, res) => {
                 }
             );
 
-            res.status(200).send(token);
+            res.status(200).send({
+                name: capitalizeFirstLetterOfFirstName(userExists.name),
+                email: userExists.email,
+                token
+            });
         } else {
             return res.sendStatus(409);
         }
@@ -92,19 +96,15 @@ app.post('/sign-in', async (req, res) => {
     }
 });
 
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+function capitalizeFirstLetterOfFirstName(string) {
+    const firstName = string.split(' ')[0]
+    return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 
-app.get('/user', async (req, res) => {
+app.get('/wallet', async (req, res) => {
     try {
-        const token = req.header('Authorization').split(' ')[1];
-
-        const session = await db.collection('sessions').findOne({ token: token });
-        const user = await db.collection('users').findOne({ _id: session.userId });
-        const firstName = capitalizeFirstLetter(user.name.split(' ')[0]);
-
-        res.status(200).send(firstName);
+        const statement = await db.collection('statement').find({}).toArray();
+        res.status(200).send(statement);
     } catch (error) {
         res.status(500).send(error);
     }
