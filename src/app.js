@@ -6,6 +6,7 @@ import { MongoClient } from 'mongodb';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import { stripHtml } from "string-strip-html";
+import dayjs from 'dayjs';
 
 dotenv.config();
 
@@ -77,14 +78,23 @@ app.post('/sign-in', async (req, res) => {
         const passwordIsCorrect = bcrypt.compareSync(req.body.password, userExists.password);
 
         if (userExists && passwordIsCorrect) {
+
             const token = uuid();
 
-            await db.collection('sessions').insertOne(
-                {
-                    userId: userExists._id,
-                    token
-                }
-            );
+            const sessionExists = await db.collection('sessions').findOne({ userId: userExists._id, });
+
+            if (sessionExists) {
+                await db.collection('sessions').updateOne({ _id: sessionExists._id }, {
+                    $set: { token: token }
+                });
+            } else {
+                await db.collection('sessions').insertOne(
+                    {
+                        userId: userExists._id,
+                        token
+                    }
+                );
+            }
 
             res.status(200).send({
                 name: capitalizeFirstLetterOfFirstName(userExists.name),
@@ -116,7 +126,7 @@ app.post('/add-expense', async (req, res) => {
         const token = req.header('Authorization').split(' ')[1];
 
         const session = await db.collection('sessions').findOne({ token });
-        if (!session) {
+        if (!session || !token) {
             return res.sendStatus(401);
         }
 
@@ -128,7 +138,7 @@ app.post('/add-expense', async (req, res) => {
         const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
         await db.collection('userWallet').updateOne({ _id: userWallet._id },
             {
-                $push: { expenses: req.body }
+                $push: { expenses: { ...req.body, date: dayjs().format('DD/MM') } }
             });
 
         res.sendStatus(201);
@@ -142,13 +152,11 @@ app.get('/wallet', async (req, res) => {
         const token = req.header('Authorization').split(' ')[1];
 
         const session = await db.collection('sessions').findOne({ token });
-        if (!session) {
+        if (!session || !token) {
             return res.sendStatus(401);
         }
 
         const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
-
-        console.log(userWallet.expenses);
 
         res.status(200).send(userWallet.expenses);
     } catch (error) {
