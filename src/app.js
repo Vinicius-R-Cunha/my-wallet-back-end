@@ -74,6 +74,8 @@ app.post('/sign-in', async (req, res) => {
             return res.status(422).send(validation.error.details.map(obj => (obj.message)));
         }
 
+        user.email = stripHtml(user.email).result.trim();
+
         const userExists = await db.collection('users').findOne({ email: user.email });
         const passwordIsCorrect = bcrypt.compareSync(req.body.password, userExists.password);
 
@@ -116,13 +118,14 @@ function capitalizeFirstLetterOfFirstName(string) {
 }
 
 app.post('/add-expense', async (req, res) => {
-    const incomeSchema = joi.object({
+    const expenseSchema = joi.object({
         value: joi.string().required(),
         description: joi.string().required(),
         expense: joi.bool().required()
     });
 
     try {
+        const expense = req.body;
         const token = req.header('Authorization').split(' ')[1];
 
         const session = await db.collection('sessions').findOne({ token });
@@ -130,15 +133,17 @@ app.post('/add-expense', async (req, res) => {
             return res.sendStatus(401);
         }
 
-        const validation = incomeSchema.validate(req.body, { abortEarly: false });
+        const validation = expenseSchema.validate(expense, { abortEarly: false });
         if (validation.error) {
             return res.status(422).send(validation.error.details.map(obj => (obj.message)));
         }
 
+        expense.description = stripHtml(expense.description).result.trim();
+
         const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
         await db.collection('userWallet').updateOne({ _id: userWallet._id },
             {
-                $push: { expenses: { ...req.body, date: dayjs().format('DD/MM') } }
+                $push: { expenses: { ...expense, date: dayjs().format('DD/MM') } }
             });
 
         res.sendStatus(201);
