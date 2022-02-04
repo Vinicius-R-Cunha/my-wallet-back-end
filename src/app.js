@@ -158,11 +158,26 @@ app.get('/wallet', async (req, res) => {
 
         const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
 
-        res.status(200).send(userWallet.expenses);
+        const subtotal = calculateSubtotal(userWallet.expenses);
+
+        res.status(200).send({ expenses: userWallet.expenses, subtotal });
     } catch (error) {
         res.status(500).send(error);
     }
 });
 
+function calculateSubtotal(expenses) {
+    let subtotal = 0;
+    for (let i = 0; i < expenses.length; i++) {
+        const value = parseFloat((expenses[i].value).replace(',', '.'));
+        if (expenses[i].expense) {
+            subtotal -= value;
+        } else {
+            subtotal += value;
+        }
+    }
+
+    return subtotal.toFixed(2).replace('.', ',');
+}
 
 app.listen(5000);
