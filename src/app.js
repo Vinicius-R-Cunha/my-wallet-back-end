@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import joi from 'joi';
 import dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import { stripHtml } from "string-strip-html";
@@ -46,7 +46,7 @@ app.post('/sign-up', async (req, res) => {
 
         const userExists = await db.collection('users').findOne({ email: user.email });
         if (userExists) {
-            return res.sendStatus(409);
+            return res.status(409).send('used email');
         }
 
         await db.collection('users').insertOne({ ...user, password: passwordHash });
@@ -143,7 +143,7 @@ app.post('/add-expense', async (req, res) => {
         const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
         await db.collection('userWallet').updateOne({ _id: userWallet._id },
             {
-                $push: { expenses: { ...expense, date: dayjs().format('DD/MM') } }
+                $push: { expenses: { _id: new ObjectId(), ...expense, date: dayjs().format('DD/MM') } }
             });
 
         res.sendStatus(201);
@@ -184,5 +184,27 @@ function calculateSubtotal(expenses) {
 
     return subtotal.toFixed(2).replace('.', ',');
 }
+
+app.delete('/wallet/:id', async (req, res) => {
+    try {
+        const _id = new ObjectId(req.params.id);
+        const token = req.header('Authorization').split(' ')[1];
+
+        const session = await db.collection('sessions').findOne({ token });
+        if (!session || !token) {
+            return res.sendStatus(401);
+        }
+
+        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+
+        await db.collection('userWallet').updateOne({ _id: userWallet._id }, {
+            $pull: { expenses: { _id } }
+        });
+
+        res.sendStatus(200);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
 
 app.listen(5000);
