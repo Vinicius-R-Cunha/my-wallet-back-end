@@ -117,7 +117,7 @@ function capitalizeFirstLetterOfFirstName(string) {
     return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 
-app.post('/add-expense', async (req, res) => {
+app.post('/wallet', async (req, res) => {
     const expenseSchema = joi.object({
         value: joi.string().required(),
         description: joi.string().required(),
