@@ -6,16 +6,10 @@ import db from '../db.js';
 export async function addToWallet(req, res) {
     try {
         const expense = req.body;
-        const token = req.header('Authorization').split(' ')[1];
-
-        const session = await db.collection('sessions').findOne({ token });
-        if (!session || !token) {
-            return res.sendStatus(401);
-        }
-
         expense.description = stripHtml(expense.description).result.trim();
 
-        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+        const { userWallet } = res.locals;
+
         await db.collection('userWallet').updateOne({ _id: userWallet._id },
             {
                 $push: { expenses: { _id: new ObjectId(), ...expense, date: dayjs().format('DD/MM') } }
@@ -29,14 +23,7 @@ export async function addToWallet(req, res) {
 
 export async function getWallet(req, res) {
     try {
-        const token = req.header('Authorization').split(' ')[1];
-
-        const session = await db.collection('sessions').findOne({ token });
-        if (!session || !token) {
-            return res.sendStatus(401);
-        }
-
-        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+        const { userWallet } = res.locals;
 
         const subtotal = calculateSubtotal(userWallet.expenses);
 
@@ -63,14 +50,7 @@ function calculateSubtotal(expenses) {
 export async function deleteFromWallet(req, res) {
     try {
         const _id = new ObjectId(req.params.id);
-        const token = req.header('Authorization').split(' ')[1];
-
-        const session = await db.collection('sessions').findOne({ token });
-        if (!session || !token) {
-            return res.sendStatus(401);
-        }
-
-        const userWallet = await db.collection('userWallet').findOne({ userId: session.userId });
+        const { userWallet } = res.locals;
 
         await db.collection('userWallet').updateOne({ _id: userWallet._id }, {
             $pull: { expenses: { _id } }
