@@ -1,23 +1,10 @@
-import joi from 'joi';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import { stripHtml } from "string-strip-html";
 import db from '../db.js';
 
 export async function signUp(req, res) {
-    const signUpSchema = joi.object({
-        name: joi.string().required(),
-        email: joi.string().lowercase().strict().required(),
-        password: joi.string().required(),
-        passwordConfirmation: joi.string().required()
-    });
-
     try {
-        const validation = signUpSchema.validate(req.body, { abortEarly: false });
-        if (validation.error) {
-            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
-        }
-
         const passwordsMatch = (req.body.password === req.body.passwordConfirmation);
         if (!passwordsMatch) {
             return res.sendStatus(409);
@@ -45,18 +32,8 @@ export async function signUp(req, res) {
 }
 
 export async function signIn(req, res) {
-    const signInSchema = joi.object({
-        email: joi.string().lowercase().strict().required(),
-        password: joi.string().required()
-    });
-
     try {
         const user = req.body;
-
-        const validation = signInSchema.validate(user, { abortEarly: false });
-        if (validation.error) {
-            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
-        }
 
         user.email = stripHtml(user.email).result.trim();
 

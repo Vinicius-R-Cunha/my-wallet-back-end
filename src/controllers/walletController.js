@@ -1,16 +1,9 @@
-import joi from 'joi';
 import { stripHtml } from "string-strip-html";
 import dayjs from 'dayjs';
 import { ObjectId } from 'mongodb';
 import db from '../db.js';
 
 export async function addToWallet(req, res) {
-    const expenseSchema = joi.object({
-        value: joi.string().required(),
-        description: joi.string().required(),
-        expense: joi.bool().required()
-    });
-
     try {
         const expense = req.body;
         const token = req.header('Authorization').split(' ')[1];
@@ -18,11 +11,6 @@ export async function addToWallet(req, res) {
         const session = await db.collection('sessions').findOne({ token });
         if (!session || !token) {
             return res.sendStatus(401);
-        }
-
-        const validation = expenseSchema.validate(expense, { abortEarly: false });
-        if (validation.error) {
-            return res.status(422).send(validation.error.details.map(obj => (obj.message)));
         }
 
         expense.description = stripHtml(expense.description).result.trim();
